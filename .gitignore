@@ -138,4 +138,4 @@ dmypy.json
 cython_debug/
 *.csv
 *.xlsx
-highs.exe
+# highs.exe
