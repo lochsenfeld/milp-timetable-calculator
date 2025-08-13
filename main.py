@@ -17,9 +17,6 @@ for combination in teacher_combinations:
         map(lambda teacher: teacher.value.subjects, combination))))
     for subject in _subjects:
         # region Fächer Doppelbestzungen Constraints
-        # * förder nicht in doppelbesetzung
-        if subject == Subjects.Remedial and len(combination) == 2:
-            continue
         # * religion nicht in doppelbesetzung
         if subject == Subjects.Religion and len(combination) == 2:
             continue
@@ -29,12 +26,12 @@ for combination in teacher_combinations:
         # * sport nicht in doppelbesetzung
         if subject == Subjects.Sports and len(combination) == 2:
             continue
-        # * schwimmen muss in doppelbesetzung und beide müssen schwimmen unterrichten
-        if subject == Subjects.Swimming and len(combination) == 1:
-            continue
-        if subject == Subjects.Swimming and len(combination) == 2:
-            if Subjects.Swimming not in combination[0].value.subjects or Subjects.Swimming not in combination[1].value.subjects:
-                continue
+        # # * schwimmen muss in doppelbesetzung und beide müssen schwimmen unterrichten
+        # if subject == Subjects.Swimming and len(combination) == 1:
+        #     continue
+        # if subject == Subjects.Swimming and len(combination) == 2:
+        #     if Subjects.Swimming not in combination[0].value.subjects or Subjects.Swimming not in combination[1].value.subjects:
+        #         continue
         # endregion
         # region Persönliche Präferenzen Doppelbesetzung
         # * Si hat keine Doppelbesetzung mit Kl
@@ -46,14 +43,8 @@ for combination in teacher_combinations:
         # * Ba hat keine Doppelbesetzung mit Kl
         if Teachers.Ba in combination and Teachers.Kl in combination:
             continue
-        # * Ba hat keine Doppelbesetzung mit Ka
-        if Teachers.Ba in combination and Teachers.Ka in combination:
-            continue
-        # * Ka hat keine Doppelbesetzung mit Si
-        if Teachers.Ka in combination and Teachers.Si in combination:
-            continue
-        # * Ka hat keine Doppelbesetzung mit Him
-        if Teachers.Ka in combination and Teachers.Him in combination:
+        # * Ha hat ausschließlich Doppelbesetzungen
+        if Teachers.Ha in combination and len(combination) < 2:
             continue
         # endregion
         # append combination as list and subjects
@@ -243,17 +234,17 @@ same_day_school_end = {
     for school_end_lesson in school_end_lessons
 }
 
-teacher_day_ogs = {
-    (teacher.index, day.index, ogs_slot.index): LpVariable("%s hat am %s in der %s OGS" % (teacher.text, day.text, ogs_slot.text), cat=LpBinary)
-    for teacher in Teachers
-    for day in Days
-    for ogs_slot in OgsSlots
-}
+# teacher_day_ogs = {
+#     (teacher.index, day.index, ogs_slot.index): LpVariable("%s hat am %s in der %s OGS" % (teacher.text, day.text, ogs_slot.text), cat=LpBinary)
+#     for teacher in Teachers
+#     for day in Days
+#     for ogs_slot in OgsSlots
+# }
 
 english_teached_by = {
     (clazz.index, teacher.index): LpVariable("In der %s wird Englisch von %s unterrichtet"
                                              % (clazz.text, teacher.text), cat=LpBinary)
-    for clazz in list(filter(lambda clazz: clazz.value is not Classes.Remedial and Subjects.English in clazz.value.lessoncount, Classes))
+    for clazz in list(filter(lambda clazz: Subjects.English in clazz.value.lessoncount, Classes))
     for teacher in list(filter(lambda teacher: Subjects.English in teacher.value.subjects, Teachers))
 }
 # endregion
@@ -262,15 +253,6 @@ problem = LpProblem("Stundenplan", sense=LpMaximize)
 # endregion
 
 # region persönliche constraints
-# TODO Ba kann einmal in der Woche zur zweiten Stunde anfangen (OPTIONAL)
-# TODO Ka maximal einmal vor 9 Uhr (OPTIONAL)
-# * Ba startet um 8 oder hat frei
-for day in Days:
-    problem.addConstraint(lpSum(x[(day.index, Lessons.First.index, clazz.index, lesson)]
-                                for clazz in Classes
-                                for lesson in teacher_to_lessons[Teachers.Ba]) +
-                          teacher_school_end[(Teachers.Ba.index, day.index, LESSONS_NONE)] == 1)
-
 # * Ma startet um 8 oder hat frei
 for day in Days:
     problem.addConstraint(lpSum(x[(day.index, Lessons.First.index, clazz.index, lesson)]
@@ -278,20 +260,12 @@ for day in Days:
                                 for lesson in teacher_to_lessons[Teachers.Ma]) +
                           teacher_school_end[(Teachers.Ma.index, day.index, LESSONS_NONE)] == 1)
 
-# * Ka startet um 9 oder hat frei
+# * Si startet um 8 oder hat frei
 for day in Days:
-    problem.addConstraint(lpSum(x[(day.index, Lessons.Second.index, clazz.index, lesson)]
+    problem.addConstraint(lpSum(x[(day.index, Lessons.First.index, clazz.index, lesson)]
                                 for clazz in Classes
-                                for lesson in teacher_to_lessons[Teachers.Ka]) +
-                          teacher_school_end[(Teachers.Ka.index, day.index, LESSONS_NONE)] == 1)
-# * Ka mindestens einmal frei
-problem.addConstraint(lpSum(teacher_school_end[(
-    Teachers.Ka.index, day.index, LESSONS_NONE)] for day in Days) >= 1)
-
-# * Su Mittwoch oder Freitag frei
-problem.addConstraint(teacher_school_end[(
-    Teachers.Ka.index, Days.Wednesday.index, LESSONS_NONE)]+teacher_school_end[(
-        Teachers.Ka.index, Days.Friday.index, LESSONS_NONE)] >= 1)
+                                for lesson in teacher_to_lessons[Teachers.Si]) +
+                          teacher_school_end[(Teachers.Si.index, day.index, LESSONS_NONE)] == 1)
 # endregion
 
 # region default constraints
@@ -352,10 +326,10 @@ for teacher in Teachers:
 
 # Rausgenommen, da jede Klasse nur eine Stunde hat
 # * An jedem Tag hat jede Klasse maximal eine Stunde englisch
-# for day in Days:
-#     for clazz in Classes.but_remedial():
-#         problem.addConstraint(lpSum(x[(day.index, lesson.index, clazz.index, combo)]
-#                               for lesson in Lessons for combo in subject_lessons[Subjects.English]) <= 1)
+for day in Days:
+    for clazz in Classes.but_remedial():
+        problem.addConstraint(lpSum(x[(day.index, lesson.index, clazz.index, combo)]
+                              for lesson in Lessons for combo in subject_lessons[Subjects.English]) <= 1)
 
 # * An jedem Tag hat jede Klasse maximal eine Stunde religion
 for day in Days:
@@ -504,7 +478,7 @@ for clazz in Classes:
                                     for lesson in Lessons
                                     for teacher in teacher_subject_combinations[combo]["teachers"]
                                     if teacher in clazz.value.classteachers) >= 2)
-
+# TODO ogs
 # region ogs
 # # Ein lehrer von 12 - 13 ( 5. Stunde + 15 Min)
 # # 1. Lehrer kann nach der OGS keinen Unterricht mehr haben
@@ -560,17 +534,6 @@ for teacher in Teachers:
 
 # endregion
 
-# * förder: 2 stunden 4-5 mal die woche migrationskinder; möglichst alle klassen unterricht (muss aber nicht); Ein Lehrer
-for day in Days:
-    # zwei stunden am tag förderunterricht
-    problem.addConstraint(
-        lpSum(lesson_used[(day.index, lesson.index, Classes.Remedial.index)] for lesson in Lessons) == 2)
-    # förderunterricht nur in der 1.-4. Stunde
-    problem.addConstraint(lpSum(
-        lesson_used[(day.index, Lessons.Fifth.index, Classes.Remedial.index)]) == 0)
-    # förderunterricht nur in der 1.-4. Stunde
-    problem.addConstraint(lpSum(
-        lesson_used[(day.index, Lessons.Sixth.index, Classes.Remedial.index)]) == 0)
 
 # * religion in der letzten stunde
 # 3. und 4. Stufe

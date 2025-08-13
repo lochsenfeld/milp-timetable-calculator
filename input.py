@@ -12,20 +12,17 @@ CONFERENCE_LESSON = Lessons.Sixth
 
 class Teachers(BaseEnum):
     Ba = Teacher("Ba", [Subjects.Misc, Subjects.Sports], 22)
-    Gr = Teacher("Gr", [Subjects.Misc,
-                 Subjects.Sports, Subjects.Religion], 27)
-    Ka = Teacher("Ka", [Subjects.Misc, Subjects.Sports], 14)
-    Ke = Teacher("Ke", [Subjects.Misc,], 22)
+    Gr = Teacher("Gr", [Subjects.Misc, Subjects.Sports, Subjects.Religion], 27)
+    Ke = Teacher("Ke", [Subjects.Misc, Subjects.Sports], 22)
     Kl = Teacher("Kl", [Subjects.Misc, Subjects.Sports], 25)
     Ma = Teacher("Ma", [Subjects.Misc, Subjects.Sports], 28)
-    Oc = Teacher("Oc", [Subjects.Misc,
-                 Subjects.Sports, Subjects.Religion], 23)
-    Su = Teacher("Su", [Subjects.Misc, Subjects.Sports,
-                 Subjects.Religion, Subjects.Swimming], 16)
+    Oc = Teacher("Oc", [Subjects.Misc, Subjects.Sports, Subjects.Religion], 23)
     Si = Teacher("Si", [Subjects.Misc, Subjects.Sports], 26)
-    Wa = Teacher("Wa", [Subjects.Misc, Subjects.Sports], 18)
-    Him = Teacher("Him", [Subjects.Misc, Subjects.Sports,
-                  Subjects.English, Subjects.Swimming], 28)
+    Wa = Teacher("Wa", [Subjects.Misc, Subjects.Sports], 15)
+    Him = Teacher(
+        "Him", [Subjects.Misc, Subjects.English, Subjects.Sports], 28)
+    Sc = Teacher("Sc", [Subjects.English], 8)
+    Ha = Teacher("Ha", [Subjects.Misc], 14)
 
     def length() -> int:
         return len(Teachers)
@@ -45,46 +42,41 @@ class Teachers(BaseEnum):
 
 
 class Classes(BaseEnum):
-    FirstA = Clazz("1A", [Teachers.Wa], {
-        Subjects.Misc: ClassLessonCount(21, 23)
+    FirstA = Clazz("1A", [Teachers.Oc], {
+        Subjects.Misc: ClassLessonCount(21, 22)
     })
-    FirstB = Clazz("1B", [Teachers.Ka, Teachers.Su], {
-        Subjects.Misc: ClassLessonCount(21, 23)
+    FirstB = Clazz("1B", [Teachers.Gr], {
+        Subjects.Misc: ClassLessonCount(21, 22)
     })
-    SecondA = Clazz("2A", [Teachers.Si], {
-        Subjects.Misc: ClassLessonCount(22, 24)
+    SecondA = Clazz("2A", [Teachers.Kl], {
+        Subjects.Misc: ClassLessonCount(22, 23)
     })
-    SecondB = Clazz("2B", [Teachers.Ke], {
-        Subjects.Misc: ClassLessonCount(22, 24)
+    SecondB = Clazz("2B", [Teachers.Him, Teachers.Wa], {
+        Subjects.Misc: ClassLessonCount(22, 23)
     })
-    ThirdA = Clazz("3A", [Teachers.Ba], {
-        Subjects.Misc: ClassLessonCount(17, 19),
-        Subjects.English: ClassLessonCount(3, 3),
-        Subjects.Swimming: ClassLessonCount(2, 2),
-        Subjects.Religion: ClassLessonCount(1, 1),
-        Subjects.Sports: ClassLessonCount(2, 2)
-    })
-    ThirdB = Clazz("3B", [Teachers.Ma], {
-        Subjects.Misc: ClassLessonCount(17, 19),
-        Subjects.English: ClassLessonCount(3, 3),
-        Subjects.Swimming: ClassLessonCount(2, 2),
-        Subjects.Religion: ClassLessonCount(1, 1),
-        Subjects.Sports: ClassLessonCount(2, 2)
-    })
-    FourthA = Clazz("4A", [Teachers.Oc], {
-        Subjects.Misc: ClassLessonCount(20, 22),
+    ThirdA = Clazz("3A", [Teachers.Si], {
+        Subjects.Misc: ClassLessonCount(19, 20),
         Subjects.English: ClassLessonCount(3, 3),
         Subjects.Religion: ClassLessonCount(1, 1),
         Subjects.Sports: ClassLessonCount(2, 2)
     })
-    FourthB = Clazz("4B", [Teachers.Gr], {
-        Subjects.Misc: ClassLessonCount(20, 22),
+    ThirdB = Clazz("3B", [Teachers.Ke], {
+        Subjects.Misc: ClassLessonCount(19, 20),
         Subjects.English: ClassLessonCount(3, 3),
         Subjects.Religion: ClassLessonCount(1, 1),
         Subjects.Sports: ClassLessonCount(2, 2)
     })
-    Remedial = Clazz("Förder", [Teachers.Kl], {
-        Subjects.Remedial: ClassLessonCount(10, 10)
+    FourthA = Clazz("4A", [Teachers.Ba], {
+        Subjects.Misc: ClassLessonCount(20, 21),
+        Subjects.English: ClassLessonCount(3, 3),
+        Subjects.Religion: ClassLessonCount(1, 1),
+        Subjects.Sports: ClassLessonCount(2, 2)
+    })
+    FourthB = Clazz("4B", [Teachers.Ma], {
+        Subjects.Misc: ClassLessonCount(20, 21),
+        Subjects.English: ClassLessonCount(3, 3),
+        Subjects.Religion: ClassLessonCount(1, 1),
+        Subjects.Sports: ClassLessonCount(2, 2)
     })
 
     def length() -> int:
@@ -95,7 +87,7 @@ class Classes(BaseEnum):
 
     @staticmethod
     def but_remedial() -> List["Classes"]:
-        return [c for c in Classes if c != Classes.Remedial]
+        return Classes
 
     @staticmethod
     def by_index(index) -> "BaseEnum":
@@ -104,12 +96,6 @@ class Classes(BaseEnum):
     @staticmethod
     def text_by_index(index) -> str:
         return Classes.by_index(index).text
-
-
-# region Förderunterricht Lehrer darf Förder unterrichten
-for teacher in Classes.Remedial.value.classteachers:
-    teacher.value.subjects.append(Subjects.Remedial)
-# endregion
 
 
 class ClassLevels(BaseEnum):
@@ -140,15 +126,11 @@ SPORT_SLOTS = {
 }
 
 SWIMMING_SLOTS = {
-    Days.Tuesday: [Lessons.First, Lessons.Second],
-    Days.Thursday: [Lessons.Third, Lessons.Fourth]
+    # Days.Tuesday: [Lessons.First, Lessons.Second],
+    # Days.Thursday: [Lessons.Third, Lessons.Fourth]
 }
 
 # region ogs
-OGS_DAYS = {
-    Days.Tuesday: [Teachers.Oc, Teachers.Kl],
-    Days.Wednesday: [Teachers.Si, Teachers.Kl, Teachers.Ma],
-    Days.Thursday: [Teachers.Ke, Teachers.Him],
-    Days.Friday: [Teachers.Ma, Teachers.Gr],
-}
+OGS_DAYS = [Days.Tuesday, Days.Wednesday,
+            Days.Thursday]  # TODO muss geändert werden
 # endregion

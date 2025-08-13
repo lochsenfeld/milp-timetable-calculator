@@ -53,7 +53,6 @@ class Lessons(BaseEnum):
 class Subjects(BaseEnum):
     Misc = Subject("Sonstiges", "")
     English = Subject("Englisch", " 'E'")
-    Remedial = Subject("Förder", " 'F'")
     Swimming = Subject("Schwimmen", " 'Schw'")
     Religion = Subject("Religion", " 'Rel'")
     Sports = Subject("Sport", " 'Sp'")
