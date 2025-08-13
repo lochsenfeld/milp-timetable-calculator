@@ -434,37 +434,62 @@ for day in Days:
                 lesson_used[(day.index, lesson.index, clazz.index)] == 1)
 
 # * Jede Klasse hat maximal drei Lehrkräfte (frisst unnormal viel Zeit)
-for clazz in Classes:  # Das bereitet die class_teached_by variable for, damit danach die drei Lehrkräfte Regel angewendet werden kann
-    for teacher in Teachers:
-        problem.addConstraint(lpSum(x[(day.index, lesson.index, clazz.index, combo)]
-                                    for day in Days
-                                    for lesson in Lessons
-                                    for combo in n_teacher_subject_combinations
-                                    if teacher in teacher_subject_combinations[combo]["teachers"]
-                                    ) <= 29 * class_teached_by[(clazz.index, teacher.index)])
+teacher_teaches_class_optimized = {}
 
 for clazz in Classes:
-    for teacher in clazz.value.classteachers:
-        problem.addConstraint(
-            class_teached_by[(clazz.index, teacher.index)] == 1)
+    eligible_teachers = []
 
-teacher_subject_count = {}
-for subject in Subjects:
-    teacher_subject_count[subject] = [0, []]
+    # Pre-filter: only consider teachers who CAN teach in this class
     for teacher in Teachers:
-        if subject in teacher.value.subjects:
-            teacher_subject_count[subject][0] += 1
-            teacher_subject_count[subject][1].append(teacher)
+        can_teach_in_class = any(
+            teacher in teacher_subject_combinations[combo]["teachers"]
+            and teacher_subject_combinations[combo]["subject"] in clazz.value.lessoncount
+            for combo in n_teacher_subject_combinations
+        )
 
-for subject in Subjects:
-    for clazz in Classes:
-        if subject in clazz.value.lessoncount and teacher_subject_count[subject][0] == 1:
-            problem.addConstraint(
-                class_teached_by[(clazz.index, teacher_subject_count[subject][1][0].index)] == 1)
+        if can_teach_in_class:
+            eligible_teachers.append(teacher)
 
-for clazz in Classes:
+            # Create binary indicator variable
+            # Short name for memory efficiency
+            var_name = f"T{teacher.index}C{clazz.index}"
+            teacher_teaches_class_optimized[(clazz.index, teacher.index)] = LpVariable(
+                var_name, cat=LpBinary
+            )
+
+            # Get all combinations where this teacher teaches this class
+            relevant_combos = [
+                combo for combo in n_teacher_subject_combinations
+                if (teacher in teacher_subject_combinations[combo]["teachers"]
+                    and teacher_subject_combinations[combo]["subject"] in clazz.value.lessoncount)
+            ]
+
+            if relevant_combos:  # Only add constraints if teacher can actually teach
+                total_lessons_by_teacher = lpSum(
+                    x[(day.index, lesson.index, clazz.index, combo)]
+                    for day in Days
+                    for lesson in Lessons
+                    for combo in relevant_combos
+                )
+
+                # If teacher teaches any lesson, indicator must be 1
+                problem.addConstraint(
+                    total_lessons_by_teacher <= 30 *
+                    teacher_teaches_class_optimized[(
+                        clazz.index, teacher.index)]
+                )
+
+                # If indicator is 0, teacher teaches no lessons
+                problem.addConstraint(
+                    teacher_teaches_class_optimized[(
+                        clazz.index, teacher.index)] <= total_lessons_by_teacher
+                )
+
+    # Maximum 3 teachers per class (much simpler constraint now)
     problem.addConstraint(
-        lpSum(class_teached_by[(clazz.index, teacher.index)] for teacher in Teachers) <= 3)
+        lpSum(teacher_teaches_class_optimized.get((clazz.index, teacher.index), 0)
+              for teacher in eligible_teachers) <= 3
+    )
 
 # * Die Klassenleitung hat mindestens 2 Stunden pro Tag in seiner Klasse
 for clazz in Classes:
@@ -590,14 +615,29 @@ for clazz in [Classes.FirstA, Classes.FirstB]:
     problem.addConstraint(
         lpSum(lesson_used[(day.index, Lessons.Sixth.index, clazz.index)] for day in Days) == 0)
 
+# * Teachers.Sc hat kein OGS!
+problem.addConstraint(lpSum(teacher_day_ogs[(
+    Teachers.Sc.index, day.index, slot.index)] == 0 for day in Days for slot in OgsSlots) == 0)
+
+
 # * Teachers.Sc hat Englisch in der Classes.ThirdA und Classes.ThirdB (Zwingend)
 for clazz in [Classes.ThirdA, Classes.ThirdB]:
-    problem.addConstraint(
-        english_teached_by[(clazz.index, Teachers.Sc.index)] == 1)
+    for teacher in list(filter(lambda teacher: Subjects.English in teacher.value.subjects, Teachers)):
+        if teacher == Teachers.Sc:
+            problem.addConstraint(
+                english_teached_by[(clazz.index, teacher.index)] == 1)
+        else:
+            problem.addConstraint(
+                english_teached_by[(clazz.index, teacher.index)] == 0)
 # *  Teachers.Him hat Englisch in der Classes.FourthA und Classes.FourthB (Zwingend)
 for clazz in [Classes.FourthA, Classes.FourthB]:
-    problem.addConstraint(
-        english_teached_by[(clazz.index, Teachers.Him.index)] == 1)
+    for teacher in list(filter(lambda teacher: Subjects.English in teacher.value.subjects, Teachers)):
+        if teacher == Teachers.Him:
+            problem.addConstraint(
+                english_teached_by[(clazz.index, teacher.index)] == 1)
+        else:
+            problem.addConstraint(
+                english_teached_by[(clazz.index, teacher.index)] == 0)
 
 ########################################################
 #################  OBJECTIVE  ##################
@@ -623,7 +663,14 @@ problem.setObjective(
 ################################################
 # The problem is solved using PuLP's choice of Solver
 print("Constraints: %s" % (len(problem.constraints)))
-problem.solve(HiGHS_CMD())
+constraint_count = len(problem.constraints)
+variable_count = len(problem.variables())
+print(
+    f"Problem size: {variable_count} variables, {constraint_count} constraints")
+
+if variable_count > 100000:
+    print("WARNING: Large problem detected. Consider further optimization.")
+problem.solve(HiGHS_CMD(msg=1))
 
 print("Status:", LpStatus[problem.status])
 if problem.status == LpStatusNotSolved:
@@ -649,6 +696,8 @@ for day in Days:
                 lesson_data.append(", ".join(list(map(
                     lambda x: x.text, teacher_subject_combinations[combo]["teachers"]))) + teacher_subject_combinations[combo]["subject"].value.short)
         lesson_data.append("-")
+    print("lesson-data")
+    print(lesson_data)
     teacher_ogs_data = ["7."]
     if sum(value(teacher_day_ogs[(teacher.index, day.index, OgsSlots.Seventh.index)]) for teacher in Teachers) >= 1:
         teachers = []
@@ -659,6 +708,8 @@ for day in Days:
             teacher_ogs_data.append("-")
         teacher_ogs_data.append(", ".join(teachers))
     day_data[day].append(teacher_ogs_data)
+    print("Day-Data")
+    print(day_data[day])
 
 # region console output
 for day in Days:
