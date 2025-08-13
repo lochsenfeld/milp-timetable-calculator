@@ -73,5 +73,4 @@ class Subjects(BaseEnum):
 
 
 class OgsSlots(BaseEnum):
-    Fifth = OgsSlot("5.")
-    Eigth = OgsSlot("8.")
+    Seventh = OgsSlot("7.")

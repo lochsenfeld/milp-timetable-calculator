@@ -21,8 +21,7 @@ class Teachers(BaseEnum):
     Wa = Teacher("Wa", [Subjects.Misc, Subjects.Sports], 15)
     Him = Teacher(
         "Him", [Subjects.Misc, Subjects.English, Subjects.Sports], 28)
-    Sc = Teacher("Sc", [Subjects.English], 8)
-    Ha = Teacher("Ha", [Subjects.Misc], 14)
+    Sc = Teacher("Sc", [Subjects.Misc, Subjects.English], 8)
 
     def length() -> int:
         return len(Teachers)
@@ -131,6 +130,9 @@ SWIMMING_SLOTS = {
 }
 
 # region ogs
-OGS_DAYS = [Days.Tuesday, Days.Wednesday,
-            Days.Thursday]  # TODO muss geändert werden
+OGS_DAYS = {
+    Days.Tuesday: 3,
+    Days.Wednesday: 3,
+    Days.Thursday: 3
+}
 # endregion
